@@ -1,56 +1,50 @@
 import { test, expect } from '../fixtures/test-fixtures';
-import { Logger } from '../helpers/logger';
+import { DataFactory } from '../helpers/data-factory';
+import { UserRole } from '../types';
 
-const log = Logger.getInstance();
-
-const loginScenarios = [
-    { username: 'standard_user',  password: 'bank_sauce',  shouldLogin: true,  description: 'full access' },
-    { username: 'locked_user',    password: 'bank_sauce',  shouldLogin: false, description: 'locked account' },
-    { username: 'frozen_user',    password: 'bank_sauce',  shouldLogin: true,  description: 'frozen no transfers' },
-    { username: 'overdraft_user', password: 'bank_sauce',  shouldLogin: true,  description: 'negative balance' },
-    { username: 'slow_user',      password: 'bank_sauce',  shouldLogin: true,  description: 'slow loading' },
-    { username: 'error_user',     password: 'bank_sauce',  shouldLogin: true,  description: 'wrong loan total' },
-    { username: 'admin_user',     password: 'admin_sauce', shouldLogin: true,  description: 'admin view' },
+const successfulRoles = [
+  UserRole.Standard,
+  UserRole.Frozen,
+  UserRole.Overdraft,
+  UserRole.Slow,
+  UserRole.Error,
+  UserRole.Admin,
 ];
 
-test.describe('Login — All User Types', () => {
+test.describe('Login role coverage', () => {
+  for (const role of successfulRoles) {
+    test(`logs in as ${role} @login`, async ({ loginPage, page }) => {
+      const user = DataFactory.createUser(role);
+      await loginPage.login(user.username, user.password);
+      await expect(page).toHaveURL(/\/dashboard$/);
+      await expect(page.getByTestId('dashboard-welcome-message')).toBeVisible({ timeout: role === UserRole.Slow ? 15_000 : 7_500 });
+    });
+  }
 
-    for (const scenario of loginScenarios) {
-
-        test(`login as ${scenario.username} — ${scenario.description} @login`, async ({ loginPage, page }) => {
-            log.step(`Attempting login: ${scenario.username}`);
-
-            await loginPage.login(scenario.username, scenario.password);
-
-            if (scenario.shouldLogin) {
-                await expect(page.getByTestId('dashboard-welcome-message'))
-                    .toBeVisible({ timeout: 15000 });
-                log.success(`${scenario.username} logged in successfully`);
-            } else {
-                await expect(loginPage.usernameField).toBeVisible();
-                log.success(`${scenario.username} correctly blocked`);
-            }
-        });
-    }
+  test('rejects a locked account with an actionable error @login', async ({ loginPage }) => {
+    const user = DataFactory.createUser(UserRole.Locked);
+    await loginPage.login(user.username, user.password);
+    await expect(loginPage.errorMessage).toBeVisible();
+    await expect(loginPage.errorMessage).not.toBeEmpty();
+  });
 });
 
-test.describe('Login — Negative Cases @negative', () => {
+test.describe('Login validation @negative', () => {
+  test('rejects a wrong password', async ({ loginPage }) => {
+    await loginPage.login(process.env.STANDARD_USER ?? 'standard_user', 'definitely-wrong');
+    await expect(loginPage.errorMessage).toBeVisible();
+    await expect(loginPage.errorMessage).not.toBeEmpty();
+  });
 
-    test('wrong password shows error', async ({ loginPage, page }) => {
-        await loginPage.login('standard_user', 'wrong_password');
-        await expect(loginPage.usernameField).toBeVisible();
-        log.success('Wrong password correctly rejected');
-    });
+  test('rejects empty credentials', async ({ loginPage }) => {
+    await loginPage.loginButton.click();
+    await expect(loginPage.errorMessage).toBeVisible();
+    await expect(loginPage.errorMessage).not.toBeEmpty();
+  });
 
-    test('empty credentials blocked', async ({ loginPage }) => {
-        await loginPage.loginButton.click();
-        await expect(loginPage.usernameField).toBeVisible();
-        log.success('Empty credentials correctly blocked');
-    });
-
-    test('non-existent user blocked', async ({ loginPage }) => {
-        await loginPage.login('fake_user_12345', 'fake_pass');
-        await expect(loginPage.usernameField).toBeVisible();
-        log.success('Non-existent user correctly blocked');
-    });
+  test('rejects a non-existent user', async ({ loginPage }) => {
+    await loginPage.login('non_existent_user', 'definitely-wrong');
+    await expect(loginPage.errorMessage).toBeVisible();
+    await expect(loginPage.errorMessage).not.toBeEmpty();
+  });
 });

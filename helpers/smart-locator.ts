@@ -36,14 +36,15 @@ export function smartLocator(page: Page, options: LocatorOptions): Locator {
         strategies.push(page.locator(options.css));
     }
 
-    if (strategies.length === 0) {
+    const [first, ...fallbacks] = strategies;
+    if (!first) {
         throw new Error('smartLocator needs at least one strategy');
     }
 
-    // Chain all strategies with .or()
-    let result = strategies[0];
-    for (let i = 1; i < strategies.length; i++) {
-        result = result.or(strategies[i]);
+    // This utility is intended for migration only. Prefer one stable semantic locator.
+    let result = first;
+    for (const fallback of fallbacks) {
+        result = result.or(fallback);
     }
 
     return result;

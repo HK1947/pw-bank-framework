@@ -6,3 +6,12 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Local configuration and generated authentication state
+.env.*
+!.env.example
+/auth/*.json
+
+# Tooling
+coverage/
+eslint-report.json

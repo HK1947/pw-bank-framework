@@ -1,94 +1,78 @@
-import { Page, Locator } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
+export interface TransactionDetails {
+  date: string;
+  description: string;
+  category: string;
+  amount: string;
+}
+
 export class DashboardPage extends BasePage {
+  readonly welcomeMessage: Locator;
+  readonly mainContent: Locator;
+  readonly totalNetWorth: Locator;
+  readonly netChange: Locator;
+  readonly income: Locator;
+  readonly expenses: Locator;
+  readonly quickTransfer: Locator;
+  readonly quickSendMoney: Locator;
+  readonly quickBillPay: Locator;
+  readonly quickApplyLoan: Locator;
+  readonly quickTransactions: Locator;
+  readonly viewAllTransactions: Locator;
+  readonly transactionRows: Locator;
 
-    // Welcome & Main
-    readonly welcomeMessage: Locator;
-    readonly mainContent: Locator;
+  constructor(page: Page) {
+    super(page);
+    this.welcomeMessage = page.getByTestId('dashboard-welcome-message');
+    this.mainContent = page.getByTestId('bank-main-content');
+    this.totalNetWorth = page.getByText('Total Net Worth').locator('../..');
+    this.netChange = page.getByText('Net Change').locator('../..');
+    this.income = page.getByText('Income').locator('../..');
+    this.expenses = page.getByText('Expenses').locator('../..');
+    this.quickTransfer = page.getByTestId('quick-action-transfer');
+    this.quickSendMoney = page.getByTestId('quick-action-send-money');
+    this.quickBillPay = page.getByTestId('quick-action-bill-pay');
+    this.quickApplyLoan = page.getByTestId('quick-action-apply-loan');
+    this.quickTransactions = page.getByTestId('quick-action-transactions');
+    this.viewAllTransactions = page.getByTestId('view-all-transactions-btn');
+    this.transactionRows = page.locator('table tbody tr');
+  }
 
-    // Financial Summary Cards
-    readonly totalNetWorth: Locator;
-    readonly netChange: Locator;
-    readonly income: Locator;
-    readonly expenses: Locator;
+  async goto(): Promise<void> {
+    await this.navigate('dashboard');
+    await this.welcomeMessage.waitFor({ state: 'visible' });
+  }
 
-    // Quick Actions
-    readonly quickTransfer: Locator;
-    readonly quickSendMoney: Locator;
-    readonly quickBillPay: Locator;
-    readonly quickApplyLoan: Locator;
-    readonly quickTransactions: Locator;
+  async getWelcomeText(): Promise<string> {
+    return this.getLocatorText(this.welcomeMessage);
+  }
 
-    // Transactions Table
-    readonly viewAllTransactions: Locator;
-    readonly transactionRows: Locator;
+  async getNetWorth(): Promise<string> {
+    const match = (await this.getLocatorText(this.totalNetWorth)).match(/\$[\d,]+\.\d{2}/);
+    return match?.[0] ?? '';
+  }
 
-    constructor(page: Page) {
-        super(page);
+  async getTransactionCount(): Promise<number> {
+    return this.transactionRows.count();
+  }
 
-        // Welcome & Main
-        this.welcomeMessage = page.getByTestId('dashboard-welcome-message');
-        this.mainContent = page.getByTestId('bank-main-content');
+  findTransactionByDescription(description: string): Locator {
+    return this.transactionRows.filter({ hasText: description });
+  }
 
-        // Financial Summary Cards
-        this.totalNetWorth = page.getByText('Total Net Worth').locator('../..');
-        this.netChange = page.getByText('Net Change').locator('../..');
-        this.income = page.getByText('Income').locator('../..');
-        this.expenses = page.getByText('Expenses').locator('../..');
+  async getAllTransactionDescriptions(): Promise<string[]> {
+    return this.transactionRows.locator('td:nth-child(2)').allTextContents();
+  }
 
-        // Quick Actions
-        this.quickTransfer = page.getByTestId('quick-action-transfer');
-        this.quickSendMoney = page.getByTestId('quick-action-send-money');
-        this.quickBillPay = page.getByTestId('quick-action-bill-pay');
-        this.quickApplyLoan = page.getByTestId('quick-action-apply-loan');
-        this.quickTransactions = page.getByTestId('quick-action-transactions');
-
-        // Transactions Table
-        this.viewAllTransactions = page.getByTestId('view-all-transactions-btn');
-        this.transactionRows = page.locator('table tbody tr');
-    }
-
-    // Navigate to dashboard
-    async goto(): Promise<void> {
-        await this.navigate('dashboard');
-    }
-
-    // Get welcome text
-    async getWelcomeText(): Promise<string> {
-        return await this.getLocatorText(this.welcomeMessage);
-    }
-
-    // Get total net worth amount
-    async getNetWorth(): Promise<string> {
-        const cardText = await this.getLocatorText(this.totalNetWorth);
-        const match = cardText.match(/\$[\d,]+\.\d{2}/);
-        return match ? match[0] : '';
-    }
-
-    // Get transaction count
-    async getTransactionCount(): Promise<number> {
-        return await this.transactionRows.count();
-    }
-
-    // Get transaction details by row index
-    async getTransactionByIndex(index: number): Promise<{
-        date: string;
-        description: string;
-        category: string;
-        amount: string;
-    }> {
-        const row = this.transactionRows.nth(index);
-        return {
-            date: await row.locator('td').nth(0).textContent() ?? '',
-            description: await row.locator('td').nth(1).textContent() ?? '',
-            category: await row.locator('td').nth(2).textContent() ?? '',
-            amount: await row.locator('td').nth(3).textContent() ?? '',
-        };
-    }
-
-    // Check if dashboard loaded
-    async isDashboardLoaded(): Promise<boolean> {
-        return await this.welcomeMessage.isVisible();
-    }
+  async getTransactionByIndex(index: number): Promise<TransactionDetails> {
+    const cells = this.transactionRows.nth(index).locator('td');
+    return {
+      date: (await cells.nth(0).textContent())?.trim() ?? '',
+      description: (await cells.nth(1).textContent())?.trim() ?? '',
+      category: (await cells.nth(2).textContent())?.trim() ?? '',
+      amount: (await cells.nth(3).textContent())?.trim() ?? '',
+    };
+  }
 }

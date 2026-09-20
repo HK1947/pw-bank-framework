@@ -1,38 +1,26 @@
-import { test, expect } from '@playwright/test';
-import { ApiClient } from '../../helpers/api-client';
+import { test, expect } from '../../fixtures/test-fixtures';
 import { DataFactory } from '../../helpers/data-factory';
-import { Logger } from '../../helpers/logger';
 
+test('full booking CRUD lifecycle @api', async ({ apiClient }) => {
+  const original = DataFactory.createBooking({ firstname: 'Framework', lastname: 'Audit' });
+  let bookingId: number | undefined;
 
-const log = Logger.getInstance();
+  try {
+    const created = await apiClient.createBooking(original);
+    bookingId = created.bookingid;
+    expect(created.booking).toEqual(original);
 
+    const saved = await apiClient.getBooking(bookingId);
+    expect(saved).toEqual(original);
 
-test('full CRUD lifecycle using ApiClient', async({request})=>{
+    const updatedData = { ...original, firstname: 'Updated', totalprice: original.totalprice + 1 };
+    const updated = await apiClient.updateBooking(bookingId, updatedData);
+    expect(updated).toEqual(updatedData);
 
-const client = new ApiClient(request)
-await client.authenticate()
-log.step('Logged in successfully collected token for next tests')
-
-
-const bookingData = DataFactory.createBooking({firstname:'harsha kumar k s'});
-log.step(`booking created for ${bookingData.firstname}`)
-const { bookingid } = await client.createBooking(bookingData)
-expect(bookingid).toBeTruthy();
-log.success(`Created booking #${bookingid}`);
-
-const savedBooking = await client.getBooking(bookingid) as any;
-expect(savedBooking.firstname).toBe('harsha kumar k s')
-expect(savedBooking.totalprice).toBe(bookingData.totalprice);
-log.success(`Read booking: ${savedBooking.firstname} ${savedBooking.lastname}`)
-
-
-const deleteStatus = await client.deleteBooking(bookingid)
-expect(deleteStatus).toBe(201)
-log.success(`Deleted booking #${bookingid}`);
-
-const bookingDeleted = await client.getBooking(bookingid) as any
-expect(bookingDeleted.firstname).toBeUndefined()
-log.success('Verified booking is gone');
-
-
-})
+    await apiClient.deleteBooking(bookingId);
+    bookingId = undefined;
+    await expect.poll(() => apiClient.getBooking(created.bookingid)).toBeUndefined();
+  } finally {
+    if (bookingId !== undefined) await apiClient.deleteBooking(bookingId);
+  }
+});

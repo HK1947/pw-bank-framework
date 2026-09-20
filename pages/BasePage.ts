@@ -1,88 +1,59 @@
-import {Page,Locator} from '@playwright/test'
+import type { Locator, Page } from '@playwright/test';
 
+export abstract class BasePage {
+  protected readonly page: Page;
+  readonly logoutButton: Locator;
+  readonly notificationBadge: Locator;
+  readonly sidebarDashboard: Locator;
+  readonly sidebarTransfer: Locator;
+  readonly sidebarTransactions: Locator;
 
+  constructor(page: Page) {
+    this.page = page;
+    this.logoutButton = page.getByTestId('topbar-logout-btn');
+    this.notificationBadge = page.getByTestId('topbar-notification-badge');
+    this.sidebarDashboard = page.getByTestId('sidebar-link-dashboard');
+    this.sidebarTransfer = page.getByTestId('sidebar-link-transfer');
+    this.sidebarTransactions = page.getByTestId('sidebar-link-transactions');
+  }
 
-export abstract class BasePage{
+  async navigate(path: string): Promise<void> {
+    await this.page.goto(path);
+  }
 
-    protected readonly page:Page;
+  async getTitle(): Promise<string> {
+    return this.page.title();
+  }
 
-    readonly logoutButton: Locator;
-    readonly notificationBadge: Locator;
-    readonly sidebarDashboard: Locator;
-    readonly sidebarTransfer: Locator;
-    readonly sidebarTransactions: Locator;
+  async waitForPageLoad(): Promise<void> {
+    await this.page.waitForLoadState('domcontentloaded');
+  }
 
-    constructor(page: Page){
-        this.page=page
+  getCurrentUrl(): string {
+    return this.page.url();
+  }
 
-        this.logoutButton = page.getByText('Logout');
-        this.notificationBadge = page.locator('[data-testid="notification-badge"]');
-        this.sidebarDashboard = page.getByTestId('sidebar-link-dashboard');
-        this.sidebarTransfer = page.getByTestId('sidebar-link-transfer');
-        this.sidebarTransactions = page.getByTestId('sidebar-link-transactions');
+  async waitForUrl(urlPattern: string | RegExp): Promise<void> {
+    await this.page.waitForURL(urlPattern);
+  }
 
-    }
+  async getLocatorText(locator: Locator): Promise<string> {
+    return (await locator.textContent())?.trim() ?? '';
+  }
 
+  async logout(): Promise<void> {
+    await this.logoutButton.click();
+  }
 
-    async navigate(path: string):Promise<void>{
+  async goToDashboard(): Promise<void> {
+    await this.sidebarDashboard.click();
+  }
 
-       await this.page.goto(path)
+  async goToTransfer(): Promise<void> {
+    await this.sidebarTransfer.click();
+  }
 
-    }
-
-
-    async getTitle():Promise<string>{
-
-        return await this.page.title();
-    }
-
-    async waitForPageLoad():Promise<void>{
-
-        return await this.page.waitForLoadState('load')
-    }
-
-
-    getCurrentUrl(){
-        return this.page.url()
-    }
-
-
-    async waitForUrl(urlPattern:'string'|RegExp):Promise<void>{
-
-        return await this.page.waitForURL(urlPattern)
-    }
-
-
-
-    async getLocatorText(locator:Locator):Promise<string>{
-
-        return await locator.textContent() ?? ''
-
-    }
-
-
-
- async logout(): Promise<void> {
-        await this.logoutButton.click();
-    }
-
-    async goToDashboard(): Promise<void> {
-        await this.sidebarDashboard.click();
-    }
-
-    async goToTransfer(): Promise<void> {
-        await this.sidebarTransfer.click();
-    }
-
-    async goToTransactions(): Promise<void> {
-        await this.sidebarTransactions.click();
-    }
-
-
-
-
-
-
-
-
+  async goToTransactions(): Promise<void> {
+    await this.sidebarTransactions.click();
+  }
 }

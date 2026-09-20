@@ -1,41 +1,56 @@
 import { test as base, expect } from '@playwright/test';
 import { LoginPage } from '../pages/LoginPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { TransferPage } from '../pages/TransferPage';
+import { BillPayPage } from '../pages/BillPayPage';
+import { TransactionsPage } from '../pages/TransactionsPage';
 import { ApiClient } from '../helpers/api-client';
-import { Logger } from '../helpers/logger';
 
-const log = Logger.getInstance();
+interface FrameworkFixtures {
+  loginPage: LoginPage;
+  dashboardPage: DashboardPage;
+  transferPage: TransferPage;
+  billPayPage: BillPayPage;
+  transactionsPage: TransactionsPage;
+  apiClient: ApiClient;
+}
 
-type MyFixtures = {
-    loginPage: LoginPage;
-    dashboardPage: DashboardPage;
-    apiClient: ApiClient;
-};
+export const test = base.extend<FrameworkFixtures>({
+  loginPage: async ({ page }, use) => {
+    const loginPage = new LoginPage(page);
+    await loginPage.goto();
+    await use(loginPage);
+  },
 
-export const test = base.extend<MyFixtures>({
-
-    loginPage: async ({ page }, use) => {
-        const loginPage = new LoginPage(page);
-        await loginPage.goto();
-        log.step('Fixture: loginPage ready on login screen');
-        await use(loginPage);
-    },
-
-    dashboardPage: async ({ page }, use) => {
-    // storageState already logged us in — just navigate!
+  dashboardPage: async ({ page }, use) => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    await expect(dashboardPage.welcomeMessage).toBeVisible({ timeout: 15000 });
-    log.step('Fixture: dashboardPage ready');
     await use(dashboardPage);
-},
+  },
 
-    apiClient: async ({ request }, use) => {
-        const client = new ApiClient(request);
-        await client.authenticate();
-        log.step('Fixture: apiClient ready - authenticated');
-        await use(client);
-    },
+  transferPage: async ({ page }, use) => {
+    const transferPage = new TransferPage(page);
+    await transferPage.goto();
+    await use(transferPage);
+  },
+
+  billPayPage: async ({ page }, use) => {
+    const billPayPage = new BillPayPage(page);
+    await billPayPage.goto();
+    await use(billPayPage);
+  },
+
+  transactionsPage: async ({ page }, use) => {
+    const transactionsPage = new TransactionsPage(page);
+    await transactionsPage.goto();
+    await use(transactionsPage);
+  },
+
+  apiClient: async ({ request }, use) => {
+    const client = new ApiClient(request);
+    await client.authenticate();
+    await use(client);
+  },
 });
 
 export { expect };

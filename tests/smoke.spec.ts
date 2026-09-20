@@ -1,26 +1,17 @@
-import { test, expect } from '@playwright/test';
-import { LoginPage } from '../pages/LoginPage';
-import { Logger } from '../helpers/logger';
+import { test, expect } from '../fixtures/test-fixtures';
 
-const log = Logger.getInstance();
+test('standard user can log in @smoke', async ({ loginPage, page }) => {
+  const username = process.env.STANDARD_USER;
+  const password = process.env.STANDARD_PASS;
+  if (!username || !password) throw new Error('STANDARD_USER and STANDARD_PASS are required');
 
-test('LoginPage — standard login', async({page})=>{
+  await loginPage.login(username, password);
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByTestId('dashboard-welcome-message')).toBeVisible();
+});
 
-   const loginPage= new LoginPage(page);
-    await loginPage.goto();
-   await loginPage.login('standard_user', 'bank_sauce');
-    await expect(page.getByTestId('dashboard-welcome-message')).toBeVisible();
-   log.success('✅ LoginPage works! Logged in successfully.');
-
-})
-
-test('LoginPage — wrong credentials', async({page})=>{
-    const loginPage= new LoginPage(page);
-    await loginPage.goto();
-    await loginPage.login('wrong_user', 'wrong_pass');
-
-    // Should show error - use expect which auto-waits
-    await expect(loginPage.errorMessage).toBeVisible();
-    log.success('✅ LoginPage error handling works!');
-
-})
+test('invalid credentials show an error @smoke', async ({ loginPage }) => {
+  await loginPage.login('wrong_user', 'wrong_pass');
+  await expect(loginPage.errorMessage).toBeVisible();
+  await expect(loginPage.errorMessage).not.toBeEmpty();
+});
