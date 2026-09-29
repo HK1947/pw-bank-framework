@@ -3,7 +3,7 @@
 [![Playwright Tests](https://github.com/HK1947/pw-bank-framework/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/HK1947/pw-bank-framework/actions/workflows/playwright.yml)
 ![Playwright](https://img.shields.io/badge/Playwright-1.63-2EAD33?logo=playwright&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?logo=typescript&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-20-339933?logo=node.js&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white)
 ![Quality Gate](https://img.shields.io/badge/Quality%20Gate-Typecheck%20%7C%20Lint%20%7C%20Test-blue)
 
 An enterprise-style Playwright and TypeScript framework demonstrating how a QA organization can build fast, reliable release confidence across browser UI, API, authentication, and client-state integration layers.
@@ -186,7 +186,7 @@ Generated authentication states live under `playwright/.auth/`. Environment file
 
 ### Prerequisites
 
-- Node.js 20 or newer
+- Node.js 24 or newer
 - npm
 - Chromium and Firefox installed by Playwright
 
