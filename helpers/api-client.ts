@@ -4,108 +4,89 @@ import { getEnvironment } from '../config/environment';
 import type { Booking, BookingResponse } from '../types';
 
 const bookingSchema = z.object({
-    firstname: z.string(),
-    lastname: z.string(),
-    totalprice: z.number(),
-    depositpaid: z.boolean(),
-    bookingdates: z.object({
-        checkin: z.string(),
-        checkout: z.string(),
-    }),
-    additionalneeds: z.string().optional(),
+  firstname: z.string(),
+  lastname: z.string(),
+  totalprice: z.number(),
+  depositpaid: z.boolean(),
+  bookingdates: z.object({
+    checkin: z.string(),
+    checkout: z.string(),
+  }),
+  additionalneeds: z.string().optional(),
 });
 
 const bookingResponseSchema = z.object({
-    bookingid: z.number().int().positive(),
-    booking: bookingSchema,
+  bookingid: z.number().int().positive(),
+  booking: bookingSchema,
 });
 
 const authResponseSchema = z.object({ token: z.string().min(1) });
 
 export class ApiClient {
-    private readonly api: APIRequestContext;
-    private readonly baseUrl: string;
-    private token?: string;
+  private token?: string;
+  private readonly baseUrl: string;
 
-    constructor(api: APIRequestContext, baseUrl = getEnvironment().API_BASE_URL) {
-        this.api = api;
-        this.baseUrl = baseUrl.replace(/\/$/, '');
-    }
+  constructor(private readonly api: APIRequestContext, baseUrl = getEnvironment().API_BASE_URL) {
+    this.baseUrl = baseUrl.replace(/\/$/, '');
+  }
 
-    async authenticate(): Promise<void> {
-        const environment = getEnvironment();
-        const response = await this.api.post(this.url('/auth'), {
-            data: {
-                username: environment.API_USERNAME,
-                password: environment.API_PASSWORD,
-            },
-        });
+  async authenticate(): Promise<void> {
+    const environment = getEnvironment();
+    const response = await this.api.post(this.url('/auth'), {
+      data: {
+        username: environment.API_USERNAME,
+        password: environment.API_PASSWORD,
+      },
+    });
+    await this.assertStatus(response, 200);
+    const body: unknown = await response.json();
+    this.token = authResponseSchema.parse(body).token;
+  }
 
-        await this.requireOk(response, 'authenticate');
-        const body: unknown = await response.json();
-        this.token = authResponseSchema.parse(body).token;
-    }
+  async createBooking(booking: Booking): Promise<BookingResponse> {
+    const response = await this.api.post(this.url('/booking'), { data: booking });
+    await this.assertStatus(response, 200);
+    const body: unknown = await response.json();
+    return bookingResponseSchema.parse(body);
+  }
 
-    async createBooking(bookingData: Booking): Promise<BookingResponse> {
-        const response = await this.api.post(this.url('/booking'), {
-            headers: this.jsonHeaders(),
-            data: bookingData,
-        });
+  async getBooking(id: number): Promise<Booking | undefined> {
+    const response = await this.api.get(this.url(`/booking/${id}`));
+    if (response.status() === 404) return undefined;
+    await this.assertStatus(response, 200);
+    const body: unknown = await response.json();
+    return bookingSchema.parse(body);
+  }
 
-        await this.requireOk(response, 'create booking');
-        const body: unknown = await response.json();
-        return bookingResponseSchema.parse(body);
-    }
+  async updateBooking(id: number, booking: Booking): Promise<Booking> {
+    const response = await this.api.put(this.url(`/booking/${id}`), {
+      headers: { Cookie: `token=${this.requiredToken()}` },
+      data: booking,
+    });
+    await this.assertStatus(response, 200);
+    const body: unknown = await response.json();
+    return bookingSchema.parse(body);
+  }
 
-    async getBooking(id: number): Promise<Booking | undefined> {
-        const response = await this.api.get(this.url(`/booking/${id}`), {
-            headers: this.jsonHeaders(),
-        });
+  async deleteBooking(id: number): Promise<void> {
+    const response = await this.api.delete(this.url(`/booking/${id}`), {
+      headers: { Cookie: `token=${this.requiredToken()}` },
+    });
+    await this.assertStatus(response, 201);
+  }
 
-        if (response.status() === 404) {
-            return undefined;
-        }
+  private url(path: string): string {
+    return `${this.baseUrl}${path}`;
+  }
 
-        await this.requireOk(response, `get booking ${id}`);
-        const body: unknown = await response.json();
-        return bookingSchema.parse(body);
-    }
+  private requiredToken(): string {
+    if (!this.token) throw new Error('ApiClient must authenticate before a write operation');
+    return this.token;
+  }
 
-    async deleteBooking(id: number): Promise<number> {
-        if (!this.token) {
-            throw new Error('ApiClient must be authenticated before deleting a booking');
-        }
-
-        const response = await this.api.delete(this.url(`/booking/${id}`), {
-            headers: {
-                Cookie: `token=${this.token}`,
-                ...this.jsonHeaders(),
-            },
-        });
-
-        await this.requireOk(response, `delete booking ${id}`);
-        return response.status();
-    }
-
-    private url(path: string): string {
-        return `${this.baseUrl}${path}`;
-    }
-
-    private jsonHeaders(): Record<string, string> {
-        return {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-        };
-    }
-
-    private async requireOk(response: APIResponse, operation: string): Promise<void> {
-        if (response.ok()) {
-            return;
-        }
-
-        const responseBody = await response.text();
-        throw new Error(
-            `API operation failed (${operation}): ${response.status()} ${response.statusText()} - ${responseBody}`,
-        );
-    }
+  private async assertStatus(response: APIResponse, expected: number): Promise<void> {
+    if (response.status() === expected) return;
+    const body = await response.text();
+    throw new Error(`${response.url()} returned ${response.status()}, expected ${expected}: ${body}`);
+  }
 }

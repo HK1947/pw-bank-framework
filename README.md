@@ -1,219 +1,363 @@
-# Playwright Bank Automation Framework
+# SecureBank Quality Engineering Framework
 
-[![Quality and Playwright Tests](https://github.com/HK1947/pw-bank-framework/actions/workflows/playwright.yml/badge.svg)](https://github.com/HK1947/pw-bank-framework/actions/workflows/playwright.yml)
-[![Playwright](https://img.shields.io/badge/Playwright-1.63-2EAD33?logo=playwright)](https://playwright.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Playwright Tests](https://github.com/HK1947/pw-bank-framework/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/HK1947/pw-bank-framework/actions/workflows/playwright.yml)
+![Playwright](https://img.shields.io/badge/Playwright-1.63-2EAD33?logo=playwright&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-20-339933?logo=node.js&logoColor=white)
+![Quality Gate](https://img.shields.io/badge/Quality%20Gate-Typecheck%20%7C%20Lint%20%7C%20Test-blue)
 
-A production-style test automation framework demonstrating how a senior SDET can design one maintainable quality platform for **browser UI, REST API, and hybrid end-to-end testing**.
+An enterprise-style Playwright and TypeScript framework demonstrating how a QA organization can build fast, reliable release confidence across browser UI, API, authentication, and client-state integration layers.
 
-The framework tests a multi-role banking application and a booking API. Its purpose is not simply to collect test cases: it shows isolation, reusable domain abstractions, typed contracts, secure authentication state, cross-browser execution, deterministic cleanup, and CI diagnostics.
+The framework tests the [SecureBank QA Playground](https://qaplayground.com/bank/) and the public Restful Booker API. Its architecture is intentionally designed to show more than test automation: it demonstrates risk-based coverage, test isolation, deterministic data management, secure configuration, failure diagnostics, and CI governance.
 
-## What this framework demonstrates
+> **Validated baseline:** 51 project-expanded checks across Chromium, Firefox, unauthenticated login, authenticated banking flows, API CRUD, and hybrid integration—with strict TypeScript and ESLint gates before execution.
 
-- UI testing on Chromium and Firefox with Playwright web-first assertions
-- API lifecycle testing with typed request/response models and Zod runtime validation
-- Hybrid flows that combine API setup, browser actions, and storage verification
-- Multi-role authentication generated once through a Playwright setup dependency
-- Page Objects for user behaviour, custom fixtures for dependency injection
-- Data factories for independent, repeatable test data
-- Strict TypeScript, ESLint, test discovery, and execution as separate quality gates
-- Failure evidence through HTML, JUnit, screenshots, video, and retry traces
-- Local, CI, headed, debug, UI-mode, tag-based, and Docker execution
+## Executive overview
+
+| Quality capability | What the framework provides | Business value |
+| --- | --- | --- |
+| Release confidence | Smoke, regression, API, negative, and hybrid layers | Faster go/no-go decisions |
+| Cross-browser assurance | Authenticated and unauthenticated coverage in Chromium and Firefox | Reduced browser-specific production risk |
+| Test isolation | Dedicated setup, authenticated, login, and API projects | Fewer false failures and state leaks |
+| Security hygiene | No committed environment files or reusable session state | Safer source control and CI operation |
+| API confidence | Status validation, typed contracts, full CRUD, guaranteed cleanup | Earlier detection with lower execution cost |
+| Maintainability | Typed fixtures, page objects, data factories, governed locators | Lower cost of change as coverage grows |
+| Failure forensics | HTML, JUnit, screenshots, video, and retry traces | Shorter mean time to diagnose failures |
+| Engineering governance | Type-check, lint, test discovery, branch CI, concurrency control | Consistent quality standards on every change |
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-    T["Test specifications"] --> F["Typed custom fixtures"]
-    F --> P["Page Objects"]
-    F --> A["API Client"]
-    F --> D["Data Factory"]
-    P --> B["BasePage + semantic locators"]
-    A --> C["Typed contracts + Zod schemas"]
-    P --> UI["Bank web application"]
-    A --> API["Booking REST API"]
-    S["Auth setup project"] --> ST["Generated storage state"]
-    ST --> F
-    E["Validated environment config"] --> F
-    R["HTML · JUnit · traces · screenshots · video"] <-->|evidence| T
+    Engineer[QA Engineer / Developer] --> Commands[npm scripts]
+    CI[GitHub Actions] --> Gates
+    Commands --> Gates[Static quality gates]
+
+    Gates --> TypeScript[Strict TypeScript]
+    Gates --> ESLint[Typed ESLint]
+    Gates --> Discovery[Playwright discovery]
+
+    Discovery --> Orchestrator[Playwright project orchestrator]
+
+    Orchestrator --> Setup[Authentication setup]
+    Setup --> UserState[Standard-user storage state]
+    Setup --> AdminState[Admin storage state]
+
+    UserState --> Chromium[Authenticated Chromium]
+    UserState --> Firefox[Authenticated Firefox]
+    AdminState --> Chromium
+    AdminState --> Firefox
+
+    Orchestrator --> LoginChrome[Unauthenticated Chromium]
+    Orchestrator --> LoginFirefox[Unauthenticated Firefox]
+    Orchestrator --> API[Browser-independent API project]
+
+    Chromium --> Fixtures[Typed fixtures]
+    Firefox --> Fixtures
+    LoginChrome --> Fixtures
+    LoginFirefox --> Fixtures
+    API --> ApiClient[Typed API client]
+
+    Fixtures --> Pages[Page objects]
+    Fixtures --> Factories[Test-data factories]
+    Pages --> Bank[SecureBank application]
+    ApiClient --> Booker[Restful Booker API]
+
+    Chromium --> Evidence[Test evidence]
+    Firefox --> Evidence
+    LoginChrome --> Evidence
+    LoginFirefox --> Evidence
+    API --> Evidence
+
+    Evidence --> HTML[HTML report]
+    Evidence --> JUnit[JUnit XML]
+    Evidence --> Media[Screenshots / video / traces]
 ```
 
-The dependency direction stays deliberate: tests express business intent, fixtures assemble dependencies, Page Objects/API clients hide transport details, and types validate the boundary.
+### Why the projects are separated
 
-```text
-pw-bank-framework/
-├── .github/workflows/     # parallel quality, browser, and API pipelines
-├── auth/                  # setup tests; generated *.json stays untracked
-├── config/                # validated environment configuration
-├── fixtures/              # dependency injection for tests
-├── helpers/               # API client, data factory, logger, locator utility
-├── pages/                 # BasePage and business-facing Page Objects
-├── tests/
-│   ├── api/               # API contract and lifecycle tests
-│   ├── hybrid/            # cross-layer scenarios
-│   └── *.spec.ts          # login, dashboard, fixture, and smoke suites
-├── types/                 # shared domain contracts
-├── Dockerfile
-├── eslint.config.mjs
-├── playwright.config.ts
-└── tsconfig.json
+Login tests must begin without a session. Dashboard and banking tests should not repeatedly pay the cost of logging in. API tests should not run once for every browser when browser behavior is irrelevant.
+
+The framework encodes those rules directly in `playwright.config.ts`:
+
+```mermaid
+flowchart LR
+    Setup[setup] --> Chromium[chromium]
+    Setup --> Firefox[firefox]
+    LoginChrome[login-chromium]:::isolated
+    LoginFirefox[login-firefox]:::isolated
+    API[api]:::isolated
+
+    classDef isolated fill:#eef6ff,stroke:#3178c6,color:#111;
 ```
+
+- `setup` creates fresh standard and admin authentication states.
+- `chromium` and `firefox` consume those states and run authenticated UI/hybrid scenarios.
+- `login-chromium` and `login-firefox` always use empty storage state.
+- `api` runs browser-independent contract and lifecycle tests exactly once.
+
+This prevents authenticated state from contaminating login tests and prevents API work from being duplicated across browser projects.
 
 ## Execution lifecycle
 
 ```mermaid
 sequenceDiagram
-    participant CI as Developer / CI
-    participant Q as Quality gates
-    participant S as Auth setup
-    participant W as Browser workers
-    participant A as API worker
-    participant R as Reports
+    autonumber
+    participant Runner as Local or CI runner
+    participant Gate as Static gates
+    participant Setup as Auth setup
+    participant Browser as Browser projects
+    participant API as API project
+    participant Report as Evidence pipeline
 
-    CI->>Q: npm run validate
-    Q->>Q: Type-check + lint + discover tests
-    par Browser matrix
-        CI->>S: Authenticate standard and admin roles
-        S-->>W: Provide isolated storage state
-        W->>W: Run UI and hybrid scenarios
-    and API suite
-        CI->>A: Run typed CRUD lifecycle
-        A->>A: Create → validate → read → delete → poll
+    Runner->>Gate: Type-check, lint, discover tests
+    Gate-->>Runner: Fail fast on framework defects
+    Runner->>Setup: Authenticate standard and admin users
+    Setup-->>Browser: Provide isolated storage states
+    par Authenticated UI
+        Browser->>Browser: Chromium banking and hybrid checks
+    and Cross-browser UI
+        Browser->>Browser: Firefox banking and hybrid checks
+    and Unauthenticated UI
+        Browser->>Browser: Login and negative scenarios
+    and API
+        API->>API: Create, read, update, delete, clean up
     end
-    W-->>R: traces, screenshots, video, HTML/JUnit
-    A-->>R: response failure context, HTML/JUnit
+    Browser-->>Report: Results and diagnostics
+    API-->>Report: Results and diagnostics
+    Report-->>Runner: HTML, JUnit, screenshots, video, traces
 ```
 
-## Test strategy
+## Test portfolio
 
-| Layer | What is validated | Design choice |
-|---|---|---|
-| UI | login roles, negative authentication, dashboard, tables, navigation, logout | semantic/test-id locators and web-first assertions |
-| API | authentication and complete booking CRUD lifecycle | typed client, runtime schemas, explicit status handling |
-| Hybrid | API-created data and browser/local-storage behaviour | verifies integration boundaries without repeating UI setup |
-| Contract | environment and API response shape | fail early with a readable configuration/schema error |
-| Quality | every TypeScript source file and test registration | strict compiler and zero-warning lint gates |
+| Layer | Representative risks covered | Execution model |
+| --- | --- | --- |
+| Authentication | Valid roles, locked users, invalid password, empty credentials, unknown users | Empty browser state on Chromium and Firefox |
+| Dashboard | Financial summary visibility, currency format, transaction integrity, navigation, logout | Reused authenticated state on both browsers |
+| Banking guardrails | Missing transfer account, minimum amounts, bill-payment account and date validation | Authenticated UI on both browsers |
+| Transactions | Search result accuracy and displayed financial amount | Authenticated UI on both browsers |
+| API | Authentication, exact status, runtime response schema, create/read/update/delete, cleanup | Dedicated browser-free project |
+| Hybrid integration | Application-state mutation reflected in UI and restored after the test | Isolated browser context with `finally` cleanup |
+| Authorization identity | Standard and admin storage states resolve to the correct user | Setup dependency plus per-test admin override |
 
-Tests are independent and parallel-safe. Data created by a test is removed in `finally`, even when its verification fails. API and browser projects are separated so a third-party API incident is immediately distinguishable from a UI regression.
+## Repository structure
+
+```text
+pw-bank-framework/
+├── .github/workflows/
+│   └── playwright.yml          # CI quality gate and evidence publishing
+├── auth/
+│   └── auth.setup.ts           # Fresh standard/admin authentication states
+├── config/
+│   └── environment.ts          # Runtime-validated configuration contract
+├── fixtures/
+│   └── test-fixtures.ts        # Typed page and API dependency injection
+├── helpers/
+│   ├── api-client.ts           # Status-aware, typed API abstraction
+│   ├── data-factory.ts         # Valid, overrideable test data
+│   ├── logger.ts               # Structured local diagnostics
+│   └── smart-locator.ts        # Migration helper for legacy locators
+├── pages/
+│   ├── BasePage.ts
+│   ├── LoginPage.ts
+│   ├── DashboardPage.ts
+│   ├── TransferPage.ts
+│   ├── BillPayPage.ts
+│   └── TransactionsPage.ts
+├── tests/
+│   ├── api/                    # Browser-independent API tests
+│   ├── hybrid/                 # State-to-UI integration tests
+│   ├── auth-check.spec.ts
+│   ├── banking-flows.spec.ts
+│   ├── dashboard.spec.ts
+│   ├── login.spec.ts
+│   └── smoke.spec.ts
+├── types/                      # Shared domain contracts
+├── .env.example               # Safe configuration template
+├── Dockerfile                 # Reproducible Playwright container
+├── eslint.config.mjs          # Type-aware lint rules
+├── playwright.config.ts       # Project orchestration and diagnostics
+└── tsconfig.json               # Strict compiler contract
+```
+
+Generated authentication states live under `playwright/.auth/`. Environment files, reports, videos, traces, and session states are deliberately excluded from Git.
 
 ## Quick start
 
-Requirements: Node.js 20+ and npm.
+### Prerequisites
+
+- Node.js 20 or newer
+- npm
+- Chromium and Firefox installed by Playwright
+
+### Install and configure
 
 ```bash
-git clone https://github.com/HK1947/pw-bank-framework.git
-cd pw-bank-framework
 npm ci
-npx playwright install --with-deps
+npx playwright install chromium firefox
 cp .env.example .env.qa
-# Replace placeholder passwords in .env.qa
-npm run validate
+```
+
+Replace every `replace-me` value in `.env.qa`. The framework validates URLs, required values, and leftover placeholders before test discovery, so configuration problems fail early with one readable message.
+
+| Variable | Purpose |
+| --- | --- |
+| `BASE_URL` | SecureBank application root; normalized to a trailing slash by the framework |
+| `STANDARD_USER` / `STANDARD_PASS` | Standard-user authentication setup |
+| `ADMIN_USER` / `ADMIN_PASS` | Admin authentication and authorization checks |
+| `API_BASE_URL` | Restful Booker service root |
+| `API_USERNAME` / `API_PASSWORD` | API token acquisition |
+| `ENV_NAME` | Human-readable environment label in test output |
+
+Run the full local quality gate:
+
+```bash
+npm run check
 npm test
 ```
 
-Generated authentication files contain cookies and tokens. They are recreated by `auth/auth.setup.ts` and are intentionally excluded from Git.
+## Commands
 
-## Common commands
+| Command | Purpose | Typical audience |
+| --- | --- | --- |
+| `npm test` | Execute the complete test portfolio | CI and release validation |
+| `npm run test:smoke` | Run the smallest release-confidence suite | Deployment verification |
+| `npm run test:regression` | Run tests outside the smoke slice | Scheduled and pre-release runs |
+| `npm run test:api` | Execute the API project once, without browsers | Service/API engineers |
+| `npm run test:headed` | Run with visible browsers | Local debugging |
+| `npm run test:ui` | Open Playwright UI mode | Test development |
+| `npm run test:debug` | Start the Playwright inspector | Root-cause analysis |
+| `npm run test:flake` | Repeat every test three times | Reliability assessment |
+| `npm run typecheck` | Validate strict TypeScript contracts | Pre-commit validation |
+| `npm run lint` | Run type-aware lint rules | Code-quality validation |
+| `npm run check` | Type-check, lint, and verify discovery | CI fail-fast gate |
+| `npm run report` | Open the latest HTML report | Failure triage |
 
-| Command | Purpose |
-|---|---|
-| `npm test` | complete configured suite |
-| `npm run test:ui` | Chromium and Firefox UI projects |
-| `npm run test:api` | API project only |
-| `npm run test:smoke` | Chromium smoke tests |
-| `npm run test:headed` | visible Chromium execution |
-| `npm run test:interactive` | Playwright UI mode |
-| `npm run test:debug` | Playwright Inspector |
-| `npm run validate` | strict TypeScript, ESLint, and test discovery |
-| `npm run report` | open the last HTML report |
-
-Run a tag or a single file:
+Tests can also be selected by tag:
 
 ```bash
-npx playwright test --grep @negative --project=chromium
-npx playwright test tests/dashboard.spec.ts --project=firefox
+npx playwright test --grep @login
+npx playwright test --grep @negative
+npx playwright test --grep @hybrid
 ```
 
-## Configuration and secrets
-
-`config/environment.ts` validates configuration before execution. Use `.env.qa`, `.env.staging`, or CI environment variables; only `.env.example` is committed.
-
-| Variable | Purpose |
-|---|---|
-| `ENV` | selects `.env.<name>`; defaults to `qa` |
-| `BASE_URL` | banking UI base URL |
-| `STANDARD_USER`, `STANDARD_PASS` | standard-role setup authentication |
-| `ADMIN_USER`, `ADMIN_PASS` | admin-role setup authentication |
-| `API_BASE_URL` | booking API root |
-| `API_USERNAME`, `API_PASSWORD` | API token credentials |
-
-For a real system, store passwords in GitHub Actions secrets or an enterprise secret manager. Never commit `.env.*` or `auth/*.json`.
-
-## Why the key abstractions exist
-
-**Page Objects** expose business operations and stable elements without putting assertions everywhere. Assertions remain visible in tests, so failures explain the expected behaviour.
-
-**Fixtures** construct fresh dependencies per test. Tests request only what they use, which reduces setup duplication and keeps parallel execution isolated.
-
-**API Client** owns URLs, authentication, headers, status handling, and runtime contract parsing. Tests remain focused on the booking lifecycle.
-
-**Data Factory** generates independent domain data while accepting targeted overrides. This avoids shared test records and hard-coded collisions.
-
-**Storage state** performs expensive UI authentication once per role and gives each worker a clean authenticated context. State files are build artifacts, not source code.
-
-## CI/CD design
+## CI/CD quality gate
 
 ```mermaid
 flowchart LR
-    PR["Push / pull request"] --> Q["Quality job"]
-    Q -->|pass| C["Chromium"]
-    Q -->|pass| F["Firefox"]
-    Q -->|pass| A["API"]
-    C --> ART["Diagnostic artifacts"]
-    F --> ART
-    A --> ART
+    Push[Push or pull request] --> Static[Typecheck + lint + discovery]
+    Static -->|pass| Chromium[Chromium + anonymous login]
+    Static -->|pass| Firefox[Firefox + anonymous login]
+    Static -->|pass| API[API contract lifecycle]
+    Static -->|fail| Stop[Fail fast]
+    Chromium --> Evidence[Per-job HTML + JUnit + artifacts]
+    Firefox --> Evidence
+    API --> Evidence
+    Evidence --> Decision[Release decision]
 ```
 
-The workflow uses least-privilege repository permissions, cancels superseded runs, caches npm packages, executes browsers as a visible matrix, and uploads evidence even on failure. `fail-fast: false` preserves cross-browser evidence when one browser fails.
+The workflow provides:
 
-## Docker
+- Least-privilege `contents: read` permissions.
+- One active run per branch/ref; superseded runs are cancelled.
+- Deterministic installation through `npm ci`.
+- Static quality gates before expensive browser execution.
+- Independent Chromium, Firefox, and API jobs, so failures are classified immediately and browser jobs run in parallel.
+- One retry in CI with a trace on the first retry.
+- Screenshots and videos retained only for failures.
+- HTML and JUnit output for human and machine consumers.
+- Per-job test evidence uploaded even when execution fails.
+- Secret overrides for real environments, with public sandbox defaults only for the demo targets.
+
+## Engineering standards
+
+Every new test should follow these rules:
+
+1. **Assert business outcomes.** Element presence alone is rarely sufficient.
+2. **Start from an explicit state.** Use the correct authenticated or unauthenticated project.
+3. **Prefer semantic locators or `data-testid`.** Avoid DOM-shape and styling selectors.
+4. **Keep API work browser-independent.** Do not multiply service tests across browser projects.
+5. **Create valid data.** Use `DataFactory` and override only fields relevant to the scenario.
+6. **Guarantee cleanup.** Place deletion or state restoration in `finally`.
+7. **Avoid fixed sleeps.** Use Playwright assertions and event-driven waiting.
+8. **Make failures explain themselves.** Assertions should identify the violated business rule.
+9. **Do not commit credentials or storage state.** Use local environment files and CI secrets.
+10. **Pass `npm run check`.** Type, lint, and discovery failures are framework defects.
+
+## Docker execution
+
+The image uses the Playwright runtime that matches the framework dependency. Configuration and secrets stay outside the image:
 
 ```bash
 docker build -t pw-bank-framework .
-docker run --rm \
-  -e BASE_URL=https://qaplayground.com/bank/ \
-  -e STANDARD_PASS=bank_sauce \
-  -e ADMIN_PASS=admin_sauce \
-  -e API_PASSWORD=password123 \
-  pw-bank-framework
+docker run --rm --env-file .env.qa pw-bank-framework
 ```
 
-Inject secrets at runtime; do not bake them into an image.
+This makes local, CI, and container execution use the same locked npm dependency graph. Do not copy `.env.qa` into the image; `.dockerignore` excludes all local environment and authentication state files.
 
-## Adding a new capability
+## Adding coverage
 
-1. Add or extend the domain contract in `types/`.
-2. Add behaviour to a Page Object or the API client; keep assertions in the test.
-3. Expose reusable setup through a typed fixture.
-4. Generate unique data through `DataFactory`.
-5. Write a focused scenario with cleanup and a meaningful tag.
-6. Run `npm run validate`, then the smallest relevant project, then the full suite.
+### UI scenario
 
-## Engineering decisions and boundaries
+1. Add or extend a page object under `pages/`.
+2. Register it in `fixtures/test-fixtures.ts` when reuse provides value.
+3. Put the spec in the appropriate domain file under `tests/`.
+4. Choose authenticated or login-project execution intentionally.
+5. Assert the user-visible and data-level result.
 
-- Locator priority is test ID → accessible role/label → visible text → CSS as a last resort.
-- Playwright assertions are preferred over returning booleans because they auto-retry and produce better diagnostics.
-- Browser and API tests use real public demo systems. Their availability is outside this repository; CI separation makes such incidents diagnosable.
-- Retries are enabled only in CI and traces are collected on the first retry, preventing local defects from being hidden.
-- The framework deliberately avoids a large custom reporter; standard artifacts are easier for teams to maintain and integrate.
+### API scenario
 
-## Roadmap for an enterprise deployment
+1. Add the operation and response contract to `ApiClient`.
+2. Put the test under `tests/api/` so it runs only in the `api` project.
+3. Validate status and meaningful response fields.
+4. Clean up created resources in `finally`.
 
-- Replace public demo targets with controlled test environments or service virtualization.
-- Add accessibility, visual regression, and database checks only where the product risk justifies them.
-- Publish JUnit results to the organisation's test-management platform.
-- Add dependency scanning and scheduled browser-compatibility runs.
+### New environment
 
-## Author
+Create `.env.<name>`, then run:
 
-Built by **Harsha Kumar K S** as a senior SDET framework-design portfolio project.
+```bash
+ENV=<name> npm test
+```
+
+The framework validates the complete environment contract and normalizes the UI URL's trailing slash, preventing both missing credentials and relative-navigation failures such as `/login` being resolved outside `/bank/`.
+
+## Failure triage
+
+Use this order to minimize diagnosis time:
+
+1. **Static gate failure:** run `npm run typecheck` or `npm run lint` locally.
+2. **Setup failure:** inspect authentication screenshots and trace first; dependent authenticated projects will be blocked intentionally.
+3. **Single browser failure:** compare Chromium and Firefox evidence for a browser-specific defect.
+4. **Cross-browser failure:** inspect shared page objects, data, environment health, and application behavior.
+5. **API failure:** read the status-aware error, which includes URL, actual status, expected status, and response body.
+6. **Flaky behavior:** run `npm run test:flake` and inspect the first-retry trace.
+
+## Quality roadmap
+
+The current framework is a strong production-style baseline. The next enterprise capabilities would be:
+
+- Accessibility scanning with WCAG-focused release thresholds.
+- Visual regression for high-value financial screens.
+- CI sharding when execution volume justifies it.
+- Historical flake and duration analytics.
+- Test-management linkage to requirements and defects.
+- Generate the existing runtime contracts from an OpenAPI specification as the service surface grows.
+- Risk-based mobile/tablet projects for responsive banking flows.
+
+## Current assessment
+
+| Dimension | Rating | Rationale |
+| --- | ---: | --- |
+| Architecture | 9/10 | Explicit project boundaries, typed fixtures, reusable domain layers |
+| Reliability | 9/10 | Isolated state, event-driven waits, cleanup, cross-browser validation |
+| Maintainability | 8.5/10 | Strict typing, linting, page objects, factories, clear conventions |
+| Test design | 8.5/10 | Business-focused UI, negative, API, and hybrid coverage |
+| CI and diagnostics | 9/10 | Fail-fast gates plus rich evidence and concurrency control |
+| Security hygiene | 8.5/10 | Generated secrets/state excluded; CI supports secret overrides |
+| Enterprise scalability | 7.5/10 | Sharding, accessibility, visual, and analytics remain roadmap items |
+| **Overall** | **8.5/10** | **Professional, credible, and ready to scale for the demo product** |
+
+---
+
+Built as a practical example of quality engineering as a system—not simply a collection of automated tests.

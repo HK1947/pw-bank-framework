@@ -7,15 +7,11 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 
-# Generated authentication state (may contain live cookies/tokens)
-/auth/*.json
-
-# Local environment files and secrets
-.env
+# Local configuration and generated authentication state
 .env.*
 !.env.example
+/auth/*.json
 
-# Tooling and OS files
-.eslintcache
-.DS_Store
+# Tooling
 coverage/
+eslint-report.json

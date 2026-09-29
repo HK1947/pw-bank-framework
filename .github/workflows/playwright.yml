@@ -17,14 +17,14 @@ concurrency:
 env:
   CI: true
   ENV_NAME: ci
-  BASE_URL: https://qaplayground.com/bank/
-  API_BASE_URL: https://restful-booker.herokuapp.com
-  STANDARD_USER: standard_user
-  STANDARD_PASS: ${{ secrets.STANDARD_PASS || 'bank_sauce' }}
-  ADMIN_USER: admin_user
-  ADMIN_PASS: ${{ secrets.ADMIN_PASS || 'admin_sauce' }}
-  API_USERNAME: admin
+  BASE_URL: ${{ secrets.BASE_URL || 'https://qaplayground.com/bank/' }}
+  API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://restful-booker.herokuapp.com/' }}
+  API_USERNAME: ${{ secrets.API_USERNAME || 'admin' }}
   API_PASSWORD: ${{ secrets.API_PASSWORD || 'password123' }}
+  STANDARD_USER: ${{ secrets.STANDARD_USER || 'standard_user' }}
+  STANDARD_PASS: ${{ secrets.STANDARD_PASS || 'bank_sauce' }}
+  ADMIN_USER: ${{ secrets.ADMIN_USER || 'admin_user' }}
+  ADMIN_PASS: ${{ secrets.ADMIN_PASS || 'admin_sauce' }}
 
 jobs:
   quality:
@@ -38,7 +38,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run validate
+      - run: npm run check
 
   ui:
     name: UI — ${{ matrix.browser }}
@@ -58,9 +58,9 @@ jobs:
       - run: npm ci
       - name: Install ${{ matrix.browser }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Run UI tests
-        run: npx playwright test --project=${{ matrix.browser }}
-      - name: Upload diagnostics
+      - name: Run authenticated and anonymous browser projects
+        run: npx playwright test --project=${{ matrix.browser }} --project=login-${{ matrix.browser }}
+      - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -84,7 +84,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:api
-      - name: Upload API diagnostics
+      - name: Upload API evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
