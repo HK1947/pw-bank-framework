@@ -4,6 +4,8 @@ import { Logger } from '../helpers/logger';
 
 const log = Logger.getInstance();
 
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test('LoginPage — standard login', async({page})=>{
 
    const loginPage= new LoginPage(page);

@@ -1,5 +1,6 @@
 import { faker } from '@faker-js/faker';
-import { Booking, OptionalBooking, UserCredentials, UserRole, UserRoleType } from '../types';
+import type { Booking, OptionalBooking, UserCredentials, UserRoleType } from '../types';
+import { UserRole } from '../types';
 
 export class DataFactory {
 
@@ -11,15 +12,22 @@ export class DataFactory {
             totalprice: faker.number.int({ min: 100, max: 10000 }),
             depositpaid: faker.datatype.boolean(),
             bookingdates: {
-                checkin: faker.date.future().toISOString().split('T')[0],
-                checkout: faker.date.future().toISOString().split('T')[0],
+                checkin: faker.date.future().toISOString().slice(0, 10),
+                checkout: faker.date.future().toISOString().slice(0, 10),
             },
             additionalneeds: faker.helpers.arrayElement([
                 'Breakfast', 'Lunch', 'Dinner', 'None'
             ]),
         };
 
-        return { ...bookingData, ...userInput };
+        return {
+            ...bookingData,
+            ...userInput,
+            bookingdates: {
+                ...bookingData.bookingdates,
+                ...userInput?.bookingdates,
+            },
+        };
     }
 
     // Create user credentials for a specific role
@@ -52,7 +60,11 @@ export class DataFactory {
     }
 
     // Create multiple bookings
-    static createBookings(count: number, overrides?: BookingOverrides): Booking[] {
+    static createBookings(count: number, overrides?: OptionalBooking): Booking[] {
+        if (!Number.isInteger(count) || count < 1) {
+            throw new Error('Booking count must be a positive integer');
+        }
+
         return Array.from({ length: count }, () =>
             DataFactory.createBooking(overrides)
         );

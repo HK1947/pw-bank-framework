@@ -1,60 +1,66 @@
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
+import { getEnvironment } from './config/environment';
 
-dotenv.config({ path: `.env.${process.env.ENV || 'qa'}` });
+const targetEnvironment = process.env.ENV ?? 'qa';
+dotenv.config({ path: `.env.${targetEnvironment}`, quiet: true });
 
-console.log(`🌐 Environment: ${process.env.ENV_NAME}`);
-console.log(`🔗 Base URL: ${process.env.BASE_URL}`);
+const environment = getEnvironment();
 
 export default defineConfig({
     testDir: './tests',
     fullyParallel: true,
     workers: process.env.CI ? 2 : 4,
     retries: process.env.CI ? 2 : 0,
-    forbidOnly: !!process.env.CI,
+    forbidOnly: Boolean(process.env.CI),
     maxFailures: process.env.CI ? 10 : 0,
     timeout: 30_000,
     expect: { timeout: 5_000 },
+    outputDir: 'test-results',
 
-    reporter: [
-        ['list'],
-        ['html', { open: 'never' }],
-    ],
+    reporter: process.env.CI
+        ? [['line'], ['html', { open: 'never' }], ['junit', { outputFile: 'test-results/junit.xml' }]]
+        : [['list'], ['html', { open: 'never' }]],
 
     use: {
-        baseURL: process.env.BASE_URL,
+        baseURL: environment.BASE_URL,
         actionTimeout: 10_000,
         navigationTimeout: 30_000,
-        headless: !!process.env.CI,
+        headless: Boolean(process.env.CI),
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
         video: 'retain-on-failure',
-        ignoreHTTPSErrors: true,
+        ignoreHTTPSErrors: false,
+        testIdAttribute: 'data-testid',
     },
 
-   projects: [
-    {
-        name: 'setup',
-        testDir: './auth',
-        //       ^^^^^^^^^^
-        //   Override testDir for THIS project only!
-        testMatch: /.*\.setup\.ts/,
-    },
-    {
-        name: 'chromium',
-        use: {
-            ...devices['Desktop Chrome'],
-           storageState: 'auth/user.json',
+    projects: [
+        {
+            name: 'setup',
+            testDir: './auth',
+            testMatch: /.*\.setup\.ts/,
         },
-        dependencies: ['setup'],
-    },
-    {
-        name: 'firefox',
-        use: {
-            ...devices['Desktop Firefox'],
-            storageState: 'auth/user.json',
+        {
+            name: 'chromium',
+            testIgnore: /tests\/api\//,
+            use: {
+                ...devices['Desktop Chrome'],
+                storageState: 'auth/user.json',
+            },
+            dependencies: ['setup'],
         },
-        dependencies: ['setup'],
-    },
-],
+        {
+            name: 'firefox',
+            testIgnore: /tests\/api\//,
+            use: {
+                ...devices['Desktop Firefox'],
+                storageState: 'auth/user.json',
+            },
+            dependencies: ['setup'],
+        },
+        {
+            name: 'api',
+            testMatch: /tests\/api\/.*\.spec\.ts/,
+        },
+    ],
 });

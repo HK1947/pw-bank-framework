@@ -1,9 +1,6 @@
-export interface User{
-
-        username:string,
-        password:string
-
-
+export interface User {
+    username: string;
+    password: string;
 }
 
 export type UserRoleType = 'standard' | 'admin' | 'locked' | 'frozen' | 'overdraft' | 'slow' | 'error';
@@ -14,10 +11,8 @@ export interface UserCredentials extends User {
 
 
 export interface BookingDates { 
-
-    checkin:string,
-    checkout:string
-
+    checkin: string;
+    checkout: string;
 }
 
 export interface Booking {
@@ -45,7 +40,11 @@ export enum UserRole {
 }
 
 export type OptionalBooking = Partial<Booking>;
-
-
-
 export type PageName = 'login' | 'dashboard' | 'transfer' | 'admin';
+
+export interface Transaction {
+    date: string;
+    description: string;
+    category: string;
+    amount: string;
+}

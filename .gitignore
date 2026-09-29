@@ -6,3 +6,16 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Generated authentication state (may contain live cookies/tokens)
+/auth/*.json
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Tooling and OS files
+.eslintcache
+.DS_Store
+coverage/

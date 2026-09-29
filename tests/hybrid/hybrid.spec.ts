@@ -11,13 +11,16 @@ test.describe('Hybrid — API setup + API verify @hybrid', () => {
         const { bookingid } = await apiClient.createBooking(bookingData);
         log.step(`API created booking #${bookingid}`);
 
-        const saved = await apiClient.getBooking(bookingid) as any;
-        expect(saved.firstname).toBe('Hybrid');
-        expect(saved.totalprice).toBe(bookingData.totalprice);
-        log.success('API verified data saved correctly');
-
-        await apiClient.deleteBooking(bookingid);
-        log.step('API cleaned up test data');
+        try {
+            const saved = await apiClient.getBooking(bookingid);
+            expect(saved).toBeDefined();
+            expect(saved?.firstname).toBe('Hybrid');
+            expect(saved?.totalprice).toBe(bookingData.totalprice);
+            log.success('API verified data saved correctly');
+        } finally {
+            await apiClient.deleteBooking(bookingid);
+            log.step('API cleaned up test data');
+        }
     });
 });
 
@@ -26,7 +29,7 @@ test.describe('Hybrid — data setup + UI verify @hybrid', () => {
     test('inject transaction via storage, verify in UI table', async ({ page }) => {
         await page.goto('dashboard');
 
-        const newTransaction = {
+        const newTransaction: StoredTransaction = {
             date: '2026-09-20',
             description: 'HYBRID TEST TRANSACTION',
             category: 'Testing',
@@ -40,8 +43,12 @@ test.describe('Hybrid — data setup + UI verify @hybrid', () => {
             const key = 'bank-app-v4';
             const raw = localStorage.getItem(key);
             if (!raw) return;
-            const store = JSON.parse(raw);
-            store.state.transactions['standard_user'].unshift(txn);
+            const store = JSON.parse(raw) as BankStore;
+            const transactions = store.state.transactions.standard_user;
+            if (!transactions) {
+                throw new Error('Standard-user transactions are missing from bank storage');
+            }
+            transactions.unshift(txn);
             localStorage.setItem(key, JSON.stringify(store));
         }, newTransaction);
 
@@ -61,7 +68,8 @@ test.describe('Hybrid — UI action + data verify @hybrid', () => {
     test('UI logout clears session in storage', async ({ dashboardPage, page }) => {
         const before = await page.evaluate(() => {
             const raw = localStorage.getItem('bank-app-v4');
-            return raw ? JSON.parse(raw).state.currentUsername : null;
+            if (!raw) return null;
+            return (JSON.parse(raw) as BankStore).state.currentUsername;
         });
         expect(before).toBe('standard_user');
         log.step(`Storage shows logged in as: ${before}`);
@@ -72,7 +80,8 @@ test.describe('Hybrid — UI action + data verify @hybrid', () => {
 
         const after = await page.evaluate(() => {
             const raw = localStorage.getItem('bank-app-v4');
-            return raw ? JSON.parse(raw).state.currentUsername : null;
+            if (!raw) return null;
+            return (JSON.parse(raw) as BankStore).state.currentUsername;
         });
 
         log.info(`Storage after logout: ${after}`);
@@ -80,3 +89,20 @@ test.describe('Hybrid — UI action + data verify @hybrid', () => {
         log.success('UI action correctly updated backend state');
     });
 });
+
+interface StoredTransaction {
+    date: string;
+    description: string;
+    category: string;
+    amount: number;
+    type: 'debit' | 'credit';
+    id: string;
+    accountId: string;
+}
+
+interface BankStore {
+    state: {
+        currentUsername: string | null;
+        transactions: Record<string, StoredTransaction[]>;
+    };
+}

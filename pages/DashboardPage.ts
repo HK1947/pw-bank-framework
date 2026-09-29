@@ -1,5 +1,6 @@
-import { Page, Locator } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { BasePage } from './BasePage';
+import type { Transaction } from '../types';
 
 export class DashboardPage extends BasePage {
 
@@ -72,12 +73,7 @@ export class DashboardPage extends BasePage {
     }
 
     // Get transaction details by row index
-    async getTransactionByIndex(index: number): Promise<{
-        date: string;
-        description: string;
-        category: string;
-        amount: string;
-    }> {
+    async getTransactionByIndex(index: number): Promise<Transaction> {
         const row = this.transactionRows.nth(index);
         return {
             date: await row.locator('td').nth(0).textContent() ?? '',
@@ -87,8 +83,4 @@ export class DashboardPage extends BasePage {
         };
     }
 
-    // Check if dashboard loaded
-    async isDashboardLoaded(): Promise<boolean> {
-        return await this.welcomeMessage.isVisible();
-    }
 }

@@ -13,7 +13,6 @@ type MyFixtures = {
 };
 
 export const test = base.extend<MyFixtures>({
-
     loginPage: async ({ page }, use) => {
         const loginPage = new LoginPage(page);
         await loginPage.goto();
@@ -22,13 +21,12 @@ export const test = base.extend<MyFixtures>({
     },
 
     dashboardPage: async ({ page }, use) => {
-    // storageState already logged us in — just navigate!
-    const dashboardPage = new DashboardPage(page);
-    await dashboardPage.goto();
-    await expect(dashboardPage.welcomeMessage).toBeVisible({ timeout: 15000 });
-    log.step('Fixture: dashboardPage ready');
-    await use(dashboardPage);
-},
+        const dashboardPage = new DashboardPage(page);
+        await dashboardPage.goto();
+        await expect(dashboardPage.welcomeMessage).toBeVisible({ timeout: 15_000 });
+        log.step('Fixture: dashboardPage ready');
+        await use(dashboardPage);
+    },
 
     apiClient: async ({ request }, use) => {
         const client = new ApiClient(request);

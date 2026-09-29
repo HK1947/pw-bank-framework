@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "types": ["node", "@playwright/test"]
+  },
+  "include": [
+    "auth/**/*.ts",
+    "fixtures/**/*.ts",
+    "helpers/**/*.ts",
+    "pages/**/*.ts",
+    "tests/**/*.ts",
+    "types/**/*.ts",
+    "playwright.config.ts"
+  ],
+  "exclude": ["node_modules", "playwright-report", "test-results"]
+}

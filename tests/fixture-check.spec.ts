@@ -2,10 +2,13 @@ import { test, expect } from '../fixtures/test-fixtures';
 //                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
 //   OUR fixtures file, NOT @playwright/test!
 
-test('loginPage fixture — on login screen', async ({ loginPage }) => {
-    // Already navigated! Just verify.
-    await expect(loginPage.usernameField).toBeVisible();
-    await expect(loginPage.loginButton).toBeVisible();
+test.describe('anonymous fixture', () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test('loginPage fixture — on login screen', async ({ loginPage }) => {
+        await expect(loginPage.usernameField).toBeVisible();
+        await expect(loginPage.loginButton).toBeVisible();
+    });
 });
 
 test('dashboardPage fixture — already logged in', async ({ dashboardPage }) => {
@@ -30,4 +33,3 @@ test('apiClient fixture — already authenticated', async ({ apiClient }) => {
     
     await apiClient.deleteBooking(booking.bookingid);
 });
-

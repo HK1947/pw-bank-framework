@@ -1,8 +1,10 @@
-import { Page, Locator } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
+
+type PlaywrightRole = Parameters<Page['getByRole']>[0];
 
 interface LocatorOptions {
     testId?: string;
-    role?: { type: 'button' | 'link' | 'textbox' | 'checkbox'; name: string };
+    role?: { type: PlaywrightRole; name: string | RegExp };
     label?: string;
     text?: string;
     css?: string;
@@ -41,9 +43,14 @@ export function smartLocator(page: Page, options: LocatorOptions): Locator {
     }
 
     // Chain all strategies with .or()
-    let result = strategies[0];
-    for (let i = 1; i < strategies.length; i++) {
-        result = result.or(strategies[i]);
+    const [first, ...rest] = strategies;
+    if (!first) {
+        throw new Error('smartLocator could not build a locator');
+    }
+
+    let result = first;
+    for (const strategy of rest) {
+        result = result.or(strategy);
     }
 
     return result;

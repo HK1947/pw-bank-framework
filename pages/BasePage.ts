@@ -1,8 +1,8 @@
-import {Page,Locator} from '@playwright/test'
+import type { Locator, Page } from '@playwright/test';
 
 
 
-export abstract class BasePage{
+export abstract class BasePage {
 
     protected readonly page:Page;
 
@@ -12,8 +12,8 @@ export abstract class BasePage{
     readonly sidebarTransfer: Locator;
     readonly sidebarTransactions: Locator;
 
-    constructor(page: Page){
-        this.page=page
+    constructor(page: Page) {
+        this.page = page;
 
         this.logoutButton = page.getByText('Logout');
         this.notificationBadge = page.locator('[data-testid="notification-badge"]');
@@ -24,45 +24,39 @@ export abstract class BasePage{
     }
 
 
-    async navigate(path: string):Promise<void>{
-
-       await this.page.goto(path)
-
+    async navigate(path: string): Promise<void> {
+        await this.page.goto(path);
     }
 
 
-    async getTitle():Promise<string>{
-
-        return await this.page.title();
+    async getTitle(): Promise<string> {
+        return this.page.title();
     }
 
-    async waitForPageLoad():Promise<void>{
-
-        return await this.page.waitForLoadState('load')
-    }
-
-
-    getCurrentUrl(){
-        return this.page.url()
+    async waitForPageLoad(): Promise<void> {
+        await this.page.waitForLoadState('domcontentloaded');
     }
 
 
-    async waitForUrl(urlPattern:'string'|RegExp):Promise<void>{
+    getCurrentUrl(): string {
+        return this.page.url();
+    }
 
-        return await this.page.waitForURL(urlPattern)
+
+    async waitForUrl(urlPattern: string | RegExp): Promise<void> {
+        await this.page.waitForURL(urlPattern);
     }
 
 
 
-    async getLocatorText(locator:Locator):Promise<string>{
-
-        return await locator.textContent() ?? ''
+    async getLocatorText(locator: Locator): Promise<string> {
+        return (await locator.textContent()) ?? '';
 
     }
 
 
 
- async logout(): Promise<void> {
+    async logout(): Promise<void> {
         await this.logoutButton.click();
     }
 
@@ -77,12 +71,4 @@ export abstract class BasePage{
     async goToTransactions(): Promise<void> {
         await this.sidebarTransactions.click();
     }
-
-
-
-
-
-
-
-
 }

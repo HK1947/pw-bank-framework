@@ -1,100 +1,111 @@
-import { PassThrough } from "node:stream";
-import { APIRequestContext } from "playwright/test";
+import type { APIRequestContext, APIResponse } from '@playwright/test';
+import { z } from 'zod';
+import { getEnvironment } from '../config/environment';
+import type { Booking, BookingResponse } from '../types';
 
+const bookingSchema = z.object({
+    firstname: z.string(),
+    lastname: z.string(),
+    totalprice: z.number(),
+    depositpaid: z.boolean(),
+    bookingdates: z.object({
+        checkin: z.string(),
+        checkout: z.string(),
+    }),
+    additionalneeds: z.string().optional(),
+});
 
-export class ApiClient{
+const bookingResponseSchema = z.object({
+    bookingid: z.number().int().positive(),
+    booking: bookingSchema,
+});
 
+const authResponseSchema = z.object({ token: z.string().min(1) });
 
-private api: APIRequestContext;
-private token: string = '';
+export class ApiClient {
+    private readonly api: APIRequestContext;
+    private readonly baseUrl: string;
+    private token?: string;
 
+    constructor(api: APIRequestContext, baseUrl = getEnvironment().API_BASE_URL) {
+        this.api = api;
+        this.baseUrl = baseUrl.replace(/\/$/, '');
+    }
 
-constructor(api:APIRequestContext){
-    this.api=api;
-}
+    async authenticate(): Promise<void> {
+        const environment = getEnvironment();
+        const response = await this.api.post(this.url('/auth'), {
+            data: {
+                username: environment.API_USERNAME,
+                password: environment.API_PASSWORD,
+            },
+        });
 
+        await this.requireOk(response, 'authenticate');
+        const body: unknown = await response.json();
+        this.token = authResponseSchema.parse(body).token;
+    }
 
+    async createBooking(bookingData: Booking): Promise<BookingResponse> {
+        const response = await this.api.post(this.url('/booking'), {
+            headers: this.jsonHeaders(),
+            data: bookingData,
+        });
 
+        await this.requireOk(response, 'create booking');
+        const body: unknown = await response.json();
+        return bookingResponseSchema.parse(body);
+    }
 
-async authenticate():Promise<void>{
+    async getBooking(id: number): Promise<Booking | undefined> {
+        const response = await this.api.get(this.url(`/booking/${id}`), {
+            headers: this.jsonHeaders(),
+        });
 
-    const response = await this.api.post('https://restful-booker.herokuapp.com/auth',{
-               data:{
-                    'username':'admin',
-                    'password':'password123'
-                }})
+        if (response.status() === 404) {
+            return undefined;
+        }
 
-            const body = await response.json();
-            this.token= body.token;
-            
-}
+        await this.requireOk(response, `get booking ${id}`);
+        const body: unknown = await response.json();
+        return bookingSchema.parse(body);
+    }
 
+    async deleteBooking(id: number): Promise<number> {
+        if (!this.token) {
+            throw new Error('ApiClient must be authenticated before deleting a booking');
+        }
 
- async createBooking(bookingData: object):Promise<{bookingid:number}>{
-
-
-        const response = await this.api.post('https://restful-booker.herokuapp.com/booking',{
-
+        const response = await this.api.delete(this.url(`/booking/${id}`), {
             headers: {
-                
-                    'Content-Type':'application/json',
-                    'Accept':'application/json'
-                    },
+                Cookie: `token=${this.token}`,
+                ...this.jsonHeaders(),
+            },
+        });
 
-                data:bookingData
-
- })
-
-    const body = await response.json();
-
-    return {
-
-            bookingid:body.bookingid
-    }
-
-
-
-
- }
-
-
-  async getBooking(id:number):Promise<object | undefined>{
-
-    const response = await this.api.get(`https://restful-booker.herokuapp.com/booking/${id}`,
-        {
-            headers:{
-
-                'Content-Type':'application/json',
-                'Accept':'application/json'
-            }
-        }
-    )
-
-    if (!response.ok()) {
-        return undefined;
-    }
-
-    return await response.json()
-    
-
-  }
-
-
-  async deleteBooking(id:number):Promise<number>{
-
-        const response = await this.api.delete(`https://restful-booker.herokuapp.com/booking/${id}`,
-        {
-            headers: { 'Cookie': `token=${this.token}` }
-        }
-        )
-
-        console.log(response.headers)
-
+        await this.requireOk(response, `delete booking ${id}`);
         return response.status();
+    }
 
-  }
+    private url(path: string): string {
+        return `${this.baseUrl}${path}`;
+    }
 
+    private jsonHeaders(): Record<string, string> {
+        return {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+        };
+    }
 
+    private async requireOk(response: APIResponse, operation: string): Promise<void> {
+        if (response.ok()) {
+            return;
+        }
 
-
+        const responseBody = await response.text();
+        throw new Error(
+            `API operation failed (${operation}): ${response.status()} ${response.statusText()} - ${responseBody}`,
+        );
+    }
 }
